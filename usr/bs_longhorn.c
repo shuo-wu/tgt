@@ -88,7 +88,7 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 			    length, cmd->offset);
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
-                        eprintf("fail to write at %lx for %u\n", cmd->offset, length);
+                        eprintf("fail to write at %" PRIu64 " for %u\n", cmd->offset, length);
 			set_medium_error(&result, &key, &asc);
                 }
 		break;
@@ -102,7 +102,7 @@ static void bs_longhorn_request(struct scsi_cmd *cmd)
 			    length, cmd->offset);
 		pthread_rwlock_unlock(&lh->rwlock);
 		if (ret) {
-                        eprintf("fail to read at %lx for %u\n", cmd->offset, length);
+                        eprintf("fail to read at %" PRIu64 " for %u\n", cmd->offset, length);
 			set_medium_error(&result, &key, &asc);
                 }
 		break;
