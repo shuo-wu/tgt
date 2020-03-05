@@ -735,9 +735,10 @@ tgtadm_err tgt_device_destroy(int tid, uint64_t lun, int force)
 		return TGTADM_NO_LUN;
 	}
 
-	if (!list_empty(&lu->cmd_queue.queue) || lu->cmd_queue.active_cmd)
+	if (!list_empty(&lu->cmd_queue.queue) || lu->cmd_queue.active_cmd) {
+		eprintf("DEBUG, lun deletion: device %" PRIu64 " has pending cmd in the queue, list empty %d, active cmd %d\n", lun, list_empty(&lu->cmd_queue.queue), lu->cmd_queue.active_cmd);
 		return TGTADM_LUN_ACTIVE;
-
+	}
 	if (lu->dev_type_template.lu_exit)
 		lu->dev_type_template.lu_exit(lu);
 
@@ -1085,6 +1086,8 @@ static int cmd_enabled(struct tgt_cmd_queue *q, struct scsi_cmd *cmd)
 static void cmd_post_perform(struct tgt_cmd_queue *q, struct scsi_cmd *cmd)
 {
 	q->active_cmd++;
+	dprintf("DEBUG, queue added in cmd_post_perform: %" PRIx64 " %x %" PRIu64 " %d\n",
+			cmd->tag, cmd->scb[0], cmd->dev->lun, q->active_cmd);
 	switch (cmd->attribute) {
 	case MSG_ORDERED_TAG:
 	case MSG_HEAD_TAG:
@@ -1180,7 +1183,7 @@ int target_cmd_perform(int tid, struct scsi_cmd *cmd)
 			target_cmd_io_done(cmd, result);
 	} else {
 		set_cmd_queued(cmd);
-		dprintf("blocked %" PRIx64 " %x %" PRIu64 " %d\n",
+		dprintf("DEBUG, queue add: blocked %" PRIx64 " %x %" PRIu64 " %d\n",
 			cmd->tag, cmd->scb[0], cmd->dev->lun, q->active_cmd);
 
 		list_add_tail(&cmd->qlist, &q->queue);
@@ -1242,6 +1245,7 @@ static void post_cmd_done(struct tgt_cmd_queue *q)
 {
 	struct scsi_cmd *cmd, *tmp;
 	int enabled, result;
+	dprintf("DEBUG, post_cmd_done(): queue active_cmd %d\n", q->active_cmd);
 
 	list_for_each_entry_safe(cmd, tmp, &q->queue, qlist) {
 		enabled = cmd_enabled(q, cmd);
@@ -1255,7 +1259,7 @@ static void post_cmd_done(struct tgt_cmd_queue *q)
 				eprintf("BUG: %" PRIu64 "\n", itn_id);
 
 			list_del(&cmd->qlist);
-			dprintf("perform %" PRIx64 " %x\n", cmd->tag,
+			dprintf("DEBUG, clean up cmd: perform %" PRIx64 " %x\n", cmd->tag,
 				cmd->attribute);
 			result = scsi_cmd_perform(nexus->host_no, cmd);
 			cmd_post_perform(q, cmd);
